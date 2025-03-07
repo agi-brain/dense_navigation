@@ -21,11 +21,26 @@ source activate xuance_drones
 
 ### Conduct task training
 
-```
-python ddpg.py --device "cuda:0" --test 0 --seed 0 
-```
+#### EIR Example
+To initiate training using the EIR algorithm, execute the following command:
 
+```
+python ddpg.py --device "cuda:0" --test 0 --seed 0 --use_intrinsic_reward 1
+```
+#### DDPG Example
+To initiate training using the DDPG algorithm, execute the following command:
+
+```
+python ddpg.py --device "cuda:0" --test 0 --seed 0 --use_intrinsic_reward 0
+```
+#### SAC Example
+To initiate training using the SAC algorithm, execute the following command:
+
+```
+python sac.py --device "cuda:0" --test 0 --seed 0 --use_intrinsic_reward 0
+```
 When the training is complete, the data and lines can be observed in tensorboard.
+
 
 ```
 tensorboard --logdir logs
@@ -33,4 +48,8 @@ tensorboard --logdir logs
 ### Test the trained model
 ```
 python ddpg.py --seed 0 --test 1 --test_episode 1 --model_folder your_model_folder
+```
+or
+```
+python sac.py --seed 0 --test 1 --test_episode 1 --model_folder your_model_folder
 ```
