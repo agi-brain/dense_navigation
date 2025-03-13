@@ -27,7 +27,7 @@ def parse_args():
     parser.add_argument("--render", type=bool, default=False)
     parser.add_argument("--test_episode", type=int, default=2)
     parser.add_argument("--model_folder", type=str, default='')
-    parser.add_argument("--use_intrinsic_reward", type=int, default=1)
+    parser.add_argument("--use_intrinsic_reward", type=int, default=0)
     parser.add_argument("--k_neighbors", type=int, default=20)
     parser.add_argument("--beta", type=float, default=0.2)
 

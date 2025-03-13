@@ -1,8 +1,8 @@
 import os
 import argparse
-from copy import deepcopy
 import numpy as np
 import torch.optim
+from copy import deepcopy
 
 from xuance import get_arguments
 from xuance.common import space2shape
@@ -13,7 +13,7 @@ from xuance.torch.utils import ActivationFunctions
 
 def parse_args():
     parser = argparse.ArgumentParser("Example of XuanCe.")
-    parser.add_argument("--method", type=str, default="sac")
+    parser.add_argument("--method", type=str, default="ddpg")
     parser.add_argument("--env", type=str, default="drones")
     parser.add_argument("--env-id", type=str, default="DenseObstacles")
     parser.add_argument("--test", type=int, default=0)
@@ -23,11 +23,11 @@ def parse_args():
     parser.add_argument("--running-steps", type=int, default=2000000)
     parser.add_argument("--eval_interval", type=int, default=10000)
     parser.add_argument("--parallels", type=int, default=8)
-    parser.add_argument("--config", type=str, default="./configs/sac/DenseObstacles.yaml")
+    parser.add_argument("--config", type=str, default="configs/ddpg/DenseObstacles.yaml")
     parser.add_argument("--render", type=bool, default=False)
-    parser.add_argument("--test_episode", type=int, default=6)
+    parser.add_argument("--test_episode", type=int, default=2)
     parser.add_argument("--model_folder", type=str, default='')
-    parser.add_argument("--use_intrinsic_reward", type=int, default=0)
+    parser.add_argument("--use_intrinsic_reward", type=int, default=1)
     parser.add_argument("--k_neighbors", type=int, default=20)
     parser.add_argument("--beta", type=float, default=0.2)
 
@@ -57,41 +57,40 @@ def run(args):
     args.action_space = envs.action_space
     n_envs = envs.num_envs
 
-    # prepare representation
+    # prepare the Representation
     from xuance.torch.representations import Basic_Identical
     representation = Basic_Identical(input_shape=space2shape(args.observation_space),
                                      device=args.device)
 
-    # prepare policy
-    from xuance.torch.policies import Gaussian_SAC_Policy
-    policy = Gaussian_SAC_Policy(action_space=args.action_space,
-                                 representation=representation,
-                                 actor_hidden_size=args.actor_hidden_size,
-                                 critic_hidden_size=args.critic_hidden_size,
-                                 normalize=None,
-                                 initialize=torch.nn.init.orthogonal_,
-                                 activation=ActivationFunctions[args.activation],
-                                 activation_action=ActivationFunctions[args.activation_action],
-                                 device=args.device)
+    # prepare the Policy
+    from xuance.torch.policies import DDPGPolicy
+    policy = DDPGPolicy(action_space=args.action_space,
+                        representation=representation,
+                        actor_hidden_size=args.actor_hidden_size,
+                        critic_hidden_size=args.critic_hidden_size,
+                        initialize=None,
+                        activation=ActivationFunctions[args.activation],
+                        activation_action=ActivationFunctions[args.activation_action],
+                        device=args.device)
 
-    # prepare agent
-    from xuance.torch.agents import SAC_Agent, get_total_iters
+    # prepare the Agent
+    from xuance.torch.agents import DDPG_Agent, get_total_iters
     actor_optimizer = torch.optim.Adam(policy.actor_parameters, args.actor_learning_rate)
     critic_optimizer = torch.optim.Adam(policy.critic_parameters, args.critic_learning_rate)
     actor_lr_scheduler = torch.optim.lr_scheduler.LinearLR(actor_optimizer, start_factor=1.0, end_factor=0.25,
                                                            total_iters=get_total_iters(agent_name, args))
     critic_lr_scheduler = torch.optim.lr_scheduler.LinearLR(critic_optimizer, start_factor=1.0, end_factor=0.25,
                                                             total_iters=get_total_iters(agent_name, args))
-    agent = SAC_Agent(config=args,
-                      envs=envs,
-                      policy=policy,
-                      optimizer=[actor_optimizer, critic_optimizer],
-                      scheduler=[actor_lr_scheduler, critic_lr_scheduler],
-                      device=args.device)
+    agent = DDPG_Agent(config=args,
+                       envs=envs,
+                       policy=policy,
+                       optimizer=[actor_optimizer, critic_optimizer],
+                       scheduler=[actor_lr_scheduler, critic_lr_scheduler],
+                       device=args.device)
 
     # start running
     envs.reset()
-    if args.benchmark:  # run benchmark
+    if args.benchmark:
         def env_fn():
             args_test = deepcopy(args)
             args_test.parallels = 1
@@ -120,12 +119,12 @@ def run(args):
         # end benchmarking
         print("Best Model Score: %.2f, std=%.2f" % (best_scores_info["mean"], best_scores_info["std"]))
     else:
-        if not args.test:  # train the model without testing
+        if not args.test:  # train the model
             n_train_steps = args.running_steps // n_envs
             agent.train(n_train_steps)
             agent.save_model("final_train_model.pth")
             print("Finish training!")
-        else:  # test a trained model
+        else:  # test the model
             def env_fn():
                 return envs
 
